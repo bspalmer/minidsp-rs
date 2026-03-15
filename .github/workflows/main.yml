@@ -3,6 +3,9 @@ name: Build minidspd for Android ARM64
 on:
   workflow_dispatch:
 
+env:
+  RUSTFLAGS: "-Awarnings"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,15 +24,12 @@ jobs:
 
       - name: Configure linker
         run: |
-          mkdir -p ~/.cargo
-          echo '[target.aarch64-linux-android]' >> ~/.cargo/config.toml
-          echo 'linker = "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config.toml
-          # Expand the variable properly
           NDK_LINKER="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-          cat > ~/.cargo/config.toml << EOF
+          mkdir -p ~/.cargo
+          cat > ~/.cargo/config.toml << TOML
           [target.aarch64-linux-android]
           linker = "$NDK_LINKER"
-          EOF
+          TOML
 
       - name: Build minidspd
         run: cargo build --release --target aarch64-linux-android --bin minidspd
