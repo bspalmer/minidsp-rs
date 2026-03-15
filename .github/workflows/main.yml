@@ -14,49 +14,7 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Patch websocket.rs - allow on containing function
-        run: |
-          python3 << 'PYEOF'
-          with open('daemon/src/http/websocket.rs', 'r') as f:
-              lines = f.readlines()
-
-          print("=== ORIGINAL FILE ===")
-          for i, l in enumerate(lines, 1):
-              print(f"{i}: {l}", end='')
-
-          # Find the line with .map(|msg| match msg {
-          target_line = None
-          for i, l in enumerate(lines):
-              if '.map(|msg| match msg {' in l:
-                  target_line = i
-                  break
-
-          if target_line is None:
-              print("ERROR: target line not found!")
-          else:
-              print(f"\nFound target at line {target_line + 1}")
-              # Walk backwards to find the fn definition
-              fn_line = None
-              for i in range(target_line, -1, -1):
-                  if lines[i].strip().startswith('fn ') or lines[i].strip().startswith('pub fn ') or lines[i].strip().startswith('async fn ') or lines[i].strip().startswith('pub async fn '):
-                      fn_line = i
-                      break
-              if fn_line is not None:
-                  print(f"Found fn at line {fn_line + 1}: {lines[fn_line].rstrip()}")
-                  # Insert allow before the fn
-                  indent = len(lines[fn_line]) - len(lines[fn_line].lstrip())
-                  allow = ' ' * indent + '#[allow(clippy::result_large_err)]\n'
-                  lines.insert(fn_line, allow)
-                  with open('daemon/src/http/websocket.rs', 'w') as f:
-                      f.writelines(lines)
-                  print("=== PATCHED FILE ===")
-                  for i, l in enumerate(lines, 1):
-                      print(f"{i}: {l}", end='')
-              else:
-                  print("ERROR: fn not found!")
-          PYEOF
-
-      - name: Patch other lint errors
+      - name: Patch lint warnings for cross-compilation
         run: |
           for f in \
             minidsp/src/lib.rs \
