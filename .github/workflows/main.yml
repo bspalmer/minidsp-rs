@@ -1,3 +1,8 @@
+git remote add upstream https://github.com/mrene/minidsp-rs.git
+git fetch upstream dev
+git checkout upstream/dev -- minidsp/src/lib.rs
+
+
 name: Build minidspd for Android ARM64
 
 on:
