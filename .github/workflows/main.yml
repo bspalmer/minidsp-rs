@@ -1,0 +1,41 @@
+name: Build minidspd for Android ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ndk;25.2.9519653
+
+      - name: Configure linker
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-linux-android]' >> ~/.cargo/config.toml
+          echo 'linker = "$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config.toml
+          # Expand the variable properly
+          NDK_LINKER="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+          cat > ~/.cargo/config.toml << EOF
+          [target.aarch64-linux-android]
+          linker = "$NDK_LINKER"
+          EOF
+
+      - name: Build minidspd
+        run: cargo build --release --target aarch64-linux-android --bin minidspd
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: minidspd-android-arm64
+          path: target/aarch64-linux-android/release/minidspd
