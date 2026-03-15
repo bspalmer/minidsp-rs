@@ -22,7 +22,7 @@ jobs:
           done
 
       - name: Install Android NDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: ndk;25.2.9519653
 
