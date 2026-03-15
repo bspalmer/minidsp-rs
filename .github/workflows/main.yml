@@ -7,22 +7,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
+          components: clippy
 
-      - name: Patch source to suppress new lints
+      - name: Auto-fix compiler errors
         run: |
-          # Prepend allow attributes to the three affected files
-          for f in minidsp/src/lib.rs minidsp/src/transport/net/codec.rs minidsp/src/formats/xml_config.rs; do
-            echo '#![allow(clippy::manual_is_multiple_of, mismatched_lifetime_syntaxes, clippy::all, warnings)]' | cat - "$f" > /tmp/patched && mv /tmp/patched "$f"
-          done
+          cargo fix --lib -p minidsp --allow-dirty --allow-staged 2>/dev/null || true
+          cargo clippy --fix -p minidsp --allow-dirty --allow-staged 2>/dev/null || true
 
       - name: Install Android NDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
         with:
           packages: ndk;25.2.9519653
 
@@ -39,8 +38,7 @@ jobs:
         run: cargo build --release --target aarch64-linux-android --bin minidspd
 
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: minidspd-android-arm64
           path: target/aarch64-linux-android/release/minidspd
-
