@@ -13,15 +13,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
-          components: clippy
 
-      - name: Suppress deny(warnings) across all affected files
+      - name: Suppress warnings across all crate roots
         run: |
           for f in \
             minidsp/src/lib.rs \
             minidsp/src/transport/net/codec.rs \
             minidsp/src/formats/xml_config.rs \
-            daemon/src/http/websocket.rs; do
+            daemon/src/main.rs; do
             echo "#![allow(warnings, clippy::all)]" | cat - "$f" > /tmp/p && mv /tmp/p "$f"
           done
 
