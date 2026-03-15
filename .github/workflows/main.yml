@@ -9,33 +9,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show websocket.rs so we can see what we are patching
-        run: cat daemon/src/http/websocket.rs
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
 
-      - name: Patch websocket.rs with Python
+      - name: Patch websocket.rs - allow on containing function
         run: |
           python3 << 'PYEOF'
-          import re
-
           with open('daemon/src/http/websocket.rs', 'r') as f:
-              content = f.read()
+              lines = f.readlines()
 
-          # Insert #[allow] before the .map( call on the offending line
-          patched = content.replace(
-              '.map(|msg| match msg {',
-              '#[allow(clippy::result_large_err)]\n            .map(|msg| match msg {'
-          )
+          print("=== ORIGINAL FILE ===")
+          for i, l in enumerate(lines, 1):
+              print(f"{i}: {l}", end='')
 
-          with open('daemon/src/http/websocket.rs', 'w') as f:
-              f.write(patched)
+          # Find the line with .map(|msg| match msg {
+          target_line = None
+          for i, l in enumerate(lines):
+              if '.map(|msg| match msg {' in l:
+                  target_line = i
+                  break
 
-          print("Patched websocket.rs:")
-          print(open('daemon/src/http/websocket.rs').read())
+          if target_line is None:
+              print("ERROR: target line not found!")
+          else:
+              print(f"\nFound target at line {target_line + 1}")
+              # Walk backwards to find the fn definition
+              fn_line = None
+              for i in range(target_line, -1, -1):
+                  if lines[i].strip().startswith('fn ') or lines[i].strip().startswith('pub fn ') or lines[i].strip().startswith('async fn ') or lines[i].strip().startswith('pub async fn '):
+                      fn_line = i
+                      break
+              if fn_line is not None:
+                  print(f"Found fn at line {fn_line + 1}: {lines[fn_line].rstrip()}")
+                  # Insert allow before the fn
+                  indent = len(lines[fn_line]) - len(lines[fn_line].lstrip())
+                  allow = ' ' * indent + '#[allow(clippy::result_large_err)]\n'
+                  lines.insert(fn_line, allow)
+                  with open('daemon/src/http/websocket.rs', 'w') as f:
+                      f.writelines(lines)
+                  print("=== PATCHED FILE ===")
+                  for i, l in enumerate(lines, 1):
+                      print(f"{i}: {l}", end='')
+              else:
+                  print("ERROR: fn not found!")
           PYEOF
 
       - name: Patch other lint errors
@@ -67,9 +85,6 @@ jobs:
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
-        with:
-          name: minidspd-android-arm64
-          path: target/aarch64-linux-android/release/minidspd
         with:
           name: minidspd-android-arm64
           path: target/aarch64-linux-android/release/minidspd
