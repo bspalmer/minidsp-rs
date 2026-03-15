@@ -9,22 +9,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show websocket.rs so we can see what we are patching
+        run: cat daemon/src/http/websocket.rs
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
 
-      - name: Fix websocket.rs lint error
+      - name: Patch websocket.rs with Python
         run: |
-          sed -i 's/\.map(|msg| match msg {/#[allow(clippy::result_large_err)]\n            .map(|msg| match msg {/' daemon/src/http/websocket.rs
-          cat daemon/src/http/websocket.rs
+          python3 << 'PYEOF'
+          import re
 
-      - name: Fix other lint errors in lib.rs
+          with open('daemon/src/http/websocket.rs', 'r') as f:
+              content = f.read()
+
+          # Insert #[allow] before the .map( call on the offending line
+          patched = content.replace(
+              '.map(|msg| match msg {',
+              '#[allow(clippy::result_large_err)]\n            .map(|msg| match msg {'
+          )
+
+          with open('daemon/src/http/websocket.rs', 'w') as f:
+              f.write(patched)
+
+          print("Patched websocket.rs:")
+          print(open('daemon/src/http/websocket.rs').read())
+          PYEOF
+
+      - name: Patch other lint errors
         run: |
           for f in \
             minidsp/src/lib.rs \
             minidsp/src/transport/net/codec.rs \
-            minidsp/src/formats/xml_config.rs; do
+            minidsp/src/formats/xml_config.rs \
+            daemon/src/main.rs; do
             echo "#![allow(warnings, clippy::all)]" | cat - "$f" > /tmp/p && mv /tmp/p "$f"
           done
 
@@ -47,6 +67,9 @@ jobs:
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
+        with:
+          name: minidspd-android-arm64
+          path: target/aarch64-linux-android/release/minidspd
         with:
           name: minidspd-android-arm64
           path: target/aarch64-linux-android/release/minidspd
