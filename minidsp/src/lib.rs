@@ -391,7 +391,7 @@ impl Input<'_> {
 }
 
 impl Channel for Input<'_> {
-    fn _channel(&self) -> ((&MiniDSP<'_>, Option<&Gate>, &'static [u16]) {
+    fn _channel(&self) -> (&MiniDSP<'_>, Option<&Gate>, &'static [u16]) {
         (self.dsp, self.spec.gate.as_ref(), self.spec.peq)
     }
 }
@@ -453,7 +453,7 @@ impl Output<'_> {
 }
 
 impl Channel for Output<'_> {
-    fn _channel(&self) -> ((&MiniDSP<'_>, Option<&Gate>, &'static [u16]) {
+    fn _channel(&self) -> (&MiniDSP<'_>, Option<&Gate>, &'static [u16]) {
         (self.dsp, Some(&self.spec.gate), self.spec.peq)
     }
 }
