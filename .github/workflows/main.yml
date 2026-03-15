@@ -39,3 +39,6 @@ jobs:
         with:
           name: minidspd-android-arm64
           path: target/aarch64-linux-android/release/minidspd
+          
+  toolchain: "1.85.0"
+
