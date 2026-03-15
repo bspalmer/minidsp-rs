@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_API: "29"
+      ANDROID_TARGET: aarch64-linux-android
     steps:
       - uses: actions/checkout@v4
 
@@ -29,14 +32,56 @@ jobs:
         with:
           packages: ndk;25.2.9519653
 
-      - name: Configure linker
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool pkg-config
+
+      - name: Cross-compile libusb for Android
         run: |
-          NDK_LINKER="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+          NDK_TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+          SYSROOT="$NDK_TOOLCHAIN/sysroot"
+          PREFIX="$HOME/android-deps"
+
+          export CC="$NDK_TOOLCHAIN/bin/${ANDROID_TARGET}${ANDROID_API}-clang"
+          export AR="$NDK_TOOLCHAIN/bin/llvm-ar"
+          export RANLIB="$NDK_TOOLCHAIN/bin/llvm-ranlib"
+          export STRIP="$NDK_TOOLCHAIN/bin/llvm-strip"
+
+          git clone --depth 1 --branch v1.0.27 https://github.com/libusb/libusb.git /tmp/libusb
+          cd /tmp/libusb
+          autoreconf -fi
+          ./configure \
+            --host=$ANDROID_TARGET \
+            --prefix="$PREFIX" \
+            --with-sysroot="$SYSROOT" \
+            --enable-static \
+            --disable-shared \
+            --disable-udev
+          make -j$(nproc)
+          make install
+
+          echo "=== Installed libusb files ==="
+          find "$PREFIX" -type f | head -20
+
+      - name: Configure linker and environment
+        run: |
+          NDK_TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+          NDK_LINKER="$NDK_TOOLCHAIN/bin/${ANDROID_TARGET}${ANDROID_API}-clang"
+          PREFIX="$HOME/android-deps"
+
           mkdir -p ~/.cargo
           cat > ~/.cargo/config.toml << TOML
           [target.aarch64-linux-android]
           linker = "$NDK_LINKER"
           TOML
+
+          # Make libusb findable by pkg-config during cross-compilation
+          echo "PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+
+          # Set CC for any C compilation (hidapi build script)
+          echo "CC_aarch64_linux_android=$NDK_TOOLCHAIN/bin/${ANDROID_TARGET}${ANDROID_API}-clang" >> $GITHUB_ENV
+          echo "AR_aarch64_linux_android=$NDK_TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
+          echo "RANLIB_aarch64_linux_android=$NDK_TOOLCHAIN/bin/llvm-ranlib" >> $GITHUB_ENV
 
       - name: Build minidspd
         run: cargo build --release --target aarch64-linux-android --bin minidspd
