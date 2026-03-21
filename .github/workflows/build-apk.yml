@@ -1,0 +1,29 @@
+name: Build APK
+on:
+  push:
+    paths: ['CDSPAdvanced-android/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build Release APK
+        working-directory: CDSPAdvanced-android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CDSPAdvanced-v3.3
+          path: CDSPAdvanced-android/app/build/outputs/apk/release/*.apk
