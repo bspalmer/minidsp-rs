@@ -10,9 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: CDSPAdvanced-android
 
     steps:
       - uses: actions/checkout@v4
@@ -26,10 +23,13 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Generate Gradle wrapper
+        working-directory: CDSPAdvanced-android
+        run: |
+          gradle wrapper --gradle-version 8.2
 
       - name: Build Release APK
+        working-directory: CDSPAdvanced-android
         run: ./gradlew assembleRelease
 
       - name: Upload APK
@@ -39,6 +39,7 @@ jobs:
           path: CDSPAdvanced-android/app/build/outputs/apk/release/*.apk
 
       - name: Create APK zip
+        working-directory: CDSPAdvanced-android
         run: |
           cd app/build/outputs/apk/release
           zip CDSPAdvanced-v3.3.zip *.apk
