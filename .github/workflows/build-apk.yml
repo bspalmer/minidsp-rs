@@ -20,19 +20,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Generate Gradle wrapper
-        working-directory: CDSPAdvanced-android
-        run: gradle wrapper --gradle-version 8.2
-
       - name: Build Release APK
-        working-directory: CDSPAdvanced-android
-        run: ./gradlew assembleRelease
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          arguments: assembleRelease
+          build-root-directory: CDSPAdvanced-android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
