@@ -1,0 +1,2 @@
+rootProject.name = 'CDSPAdvanced'
+include ':app'

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>C-DSP Advanced</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #status {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #64ffda;
+        }
+        #error {
+            color: #ff6b6b;
+            font-size: 0.9em;
+            margin-top: 10px;
+            display: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(100, 255, 218, 0.2);
+            border-top: 4px solid #64ffda;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #controls { display: none; width: 90%; max-width: 800px; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+        h2 { color: #64ffda; font-size: 1.1em; margin-bottom: 12px; }
+        .preset-btn {
+            background: rgba(100, 255, 218, 0.15);
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        .preset-btn.active { background: #64ffda; color: #1a1a2e; }
+        .slider-row { display: flex; align-items: center; margin: 8px 0; }
+        .slider-row label { width: 120px; font-size: 0.9em; }
+        .slider-row input[type=range] { flex: 1; }
+        .slider-row .val { width: 60px; text-align: right; font-size: 0.9em; color: #64ffda; }
+    </style>
+</head>
+<body>
+    <div class="spinner" id="spinner"></div>
+    <div id="status">Connecting to C-DSP...</div>
+    <div id="error"></div>
+
+    <div id="controls">
+        <div class="card">
+            <h2>Presets</h2>
+            <div id="presets"></div>
+        </div>
+        <div class="card">
+            <h2>Master Volume</h2>
+            <div class="slider-row">
+                <label>Volume</label>
+                <input type="range" id="volume" min="-127" max="0" step="0.5" value="0">
+                <span class="val" id="volVal">0 dB</span>
+            </div>
+            <div class="slider-row">
+                <label>Mute</label>
+                <button class="preset-btn" id="muteBtn" onclick="toggleMute()">Mute</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://127.0.0.1:5380';
+        let connected = false;
+        let muted = false;
+        let currentPreset = 0;
+
+        async function tryConnect() {
+            try {
+                const r = await fetch(API + '/api/v1/status', { signal: AbortSignal.timeout(2000) });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                connected = true;
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('status').textContent = 'C-DSP Connected';
+                document.getElementById('controls').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                updateFromStatus(data);
+            } catch (e) {
+                document.getElementById('error').textContent = 'Waiting for daemon... (' + e.message + ')';
+                document.getElementById('error').style.display = 'block';
+                setTimeout(tryConnect, 2000);
+            }
+        }
+
+        function updateFromStatus(data) {
+            if (data.master) {
+                if (data.master.volume !== undefined) {
+                    document.getElementById('volume').value = data.master.volume;
+                    document.getElementById('volVal').textContent = data.master.volume + ' dB';
+                }
+                if (data.master.mute !== undefined) {
+                    muted = data.master.mute;
+                    document.getElementById('muteBtn').classList.toggle('active', muted);
+                    document.getElementById('muteBtn').textContent = muted ? 'Unmute' : 'Mute';
+                }
+            }
+            if (data.preset !== undefined) {
+                currentPreset = data.preset;
+            }
+            if (data.presets) {
+                const container = document.getElementById('presets');
+                container.innerHTML = '';
+                data.presets.forEach((name, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'preset-btn' + (i === currentPreset ? ' active' : '');
+                    btn.textContent = name || ('Preset ' + (i + 1));
+                    btn.onclick = () => setPreset(i);
+                    container.appendChild(btn);
+                });
+            }
+        }
+
+        async function setPreset(idx) {
+            try {
+                await fetch(API + '/api/v1/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preset: idx })
+                });
+                currentPreset = idx;
+                document.querySelectorAll('#presets .preset-btn').forEach((btn, i) => {
+                    btn.classList.toggle('active', i === idx);
+                });
+            } catch (e) { console.error('setPreset', e); }
+        }
+
+        async function toggleMute() {
+            muted = !muted;
+            try {
+                await fetch(API + '/api/v1/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ master_mute: muted })
+                });
+                document.getElementById('muteBtn').classList.toggle('active', muted);
+                document.getElementById('muteBtn').textContent = muted ? 'Unmute' : 'Mute';
+            } catch (e) { console.error('toggleMute', e); }
+        }
+
+        document.getElementById('volume').addEventListener('input', async function() {
+            const v = parseFloat(this.value);
+            document.getElementById('volVal').textContent = v + ' dB';
+            try {
+                await fetch(API + '/api/v1/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ master_volume: v })
+                });
+            } catch (e) { console.error('setVolume', e); }
+        });
+
+        tryConnect();
+    </script>
+</body>
+</html>
