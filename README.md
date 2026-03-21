@@ -1,6 +1,15 @@
 # MiniDSP Controller
 [![GitHub release](https://img.shields.io/github/v/release/mrene/minidsp-rs?include_prereleases)](https://github.com/mrene/minidsp-rs/releases) [![Documentation](https://img.shields.io/badge/docs-online-success)](https://minidsp-rs.pages.dev/) [![Discord](https://img.shields.io/discord/850873168558424095?label=discord&logo=discord)](https://discord.gg/XGHmrcDumf)
 
+
+
+
+This is my attempt at trying to provide for an Android App which would surpass the features in the Minidsp provided App.  There are likely going to be some limitations aka not every 'on/off/switch' function will work.  I am adding additional functions on like an RTA with a signal generator.  The ability to load the calibration file(umik).  Its a work in progress and will take time to work out.
+
+
+
+
+
 minidsp-rs is an alternative control software for certain MiniDSP products. It exposes most (if not all) of the available configuration parameters in a command line package, with an optional HTTP API in order to integrate with custom DIY audio projects. It can run on a variety of systems with a minimal memory footprint.
 
 ## Installation
